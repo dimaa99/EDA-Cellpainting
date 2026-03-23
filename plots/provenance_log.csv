@@ -1,0 +1,12 @@
+step,description,before,after,effect
+1. Image loading,Read 16-bit TIFFs directly as float32,Raw TIFF,float32 array,No lossy 8-bit conversion
+2. Percentile normalisation,"Clip to [p1, p99] per channel, scale to [0,1]",Arbitrary intensity range,"[0, 1] float32",Removes plate-level intensity variation
+3. Virtual tiling,Split each image into 3x4 grid of tiles,"153,370 images","1,840,440 tiles",Preserves cellular resolution at 224x224 input
+4. Feature extraction,DINOv3 ViT-B/16 [CLS] token per tile,"1,840,440 tiles","153,370 x 768-dim",Self-supervised morphological features
+5. Tile aggregation,Mean-pool tile features per image,12 tiles/image,1 vector/image,Image-level representation
+6. Well aggregation,Mean across sites within each well,"153,370 images","~153,370 wells",Well-level features
+7. Harmony batch correction,Soft k-means on plate labels at well level,Plate-confounded,Batch-corrected,iLISI before: 18.76 (moderate plate structure)
+8. Well-to-compound aggregation,Median across replicate wells per compound,"~153,370 wells","30,413 compounds",Robust compound profiles
+9. Variance filter,Remove features with var < 0.01,768 features,~387 features,Removed ~381 near-constant dims
+10. Correlation filter,Drop one of each pair with |r| > 0.95,~387 features,337 features,Removed redundant dimensions
+11. L2 normalisation,Row-wise L2 norm to unit sphere,"30,413 x 337",Same shape,Cosine distance = Euclidean on unit sphere

@@ -346,6 +346,50 @@ a:hover { text-decoration: underline; }
   display: block;
 }
 
+/* ---- Info grid (personal / context cards) ---- */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.info-card {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  border-left: 3px solid var(--secondary);
+}
+.info-card__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+.info-card__value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+.info-card__value code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 400;
+  background: #f0f0f0;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+/* ---- Wide card variant ---- */
+.card--wide { max-width: 100%; }
+
+/* ---- Table scroll wrapper ---- */
+.data-table-wrap {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
 /* ---- Footer ---- */
 .footer {
   padding: 2rem 3rem;
