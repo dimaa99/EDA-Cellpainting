@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unsupervised Phenotype Discovery in Cell Painting — EDA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&family=DM+Sans:wght@400;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Mobile sidebar toggle -->
+<button class="sidebar-toggle" aria-label="Toggle navigation">&#9776;</button>
+
+<!-- ============ Sidebar ============ -->
+<aside class="sidebar">
+  <div class="sidebar__logo">Cell Painting EDA</div>
+  <span class="sidebar__sub">Unsupervised Phenotype Discovery</span>
+  <nav>
+    <a href="#overview">Overview</a>
+
+    <div class="nav-group-label">Methods</div>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#preprocessing">Data &amp; Preprocessing</a>
+    <a href="#features">Feature Extraction</a>
+    <a href="#batch-correction">Batch Correction</a>
+
+    <div class="nav-group-label">Results</div>
+    <a href="#clustering">Clustering</a>
+    <a href="#hit-discovery">Hit Discovery</a>
+    <a href="#robustness">Robustness</a>
+    <a href="#param-tuning">Parameter Tuning</a>
+    <a href="#model-comparison">Model Comparison</a>
+    <a href="#interpretability">Interpretability</a>
+
+    <div class="nav-group-label">Links</div>
+    <a href="https://github.com/dimaa99/Unsupervised-Cellpainting" target="_blank">GitHub Repo</a>
+  </nav>
+</aside>
+
+<!-- ============ Main content ============ -->
+<div class="main">
+
+  <!-- ---- Hero ---- -->
+  <header class="hero">
+    <h1>Unsupervised Phenotype Discovery<br>in JUMP Cell Painting</h1>
+    <p>
+      An exploratory data analysis of ~30,000 compounds across 407 plates using
+      self-supervised vision transformers (DINOv3) and graph-based clustering
+      to discover morphological phenotypes from the Mito channel.
+    </p>
+    <div class="hero__badges">
+      <span class="badge badge--teal">DINOv3 ViT-B/16</span>
+      <span class="badge badge--amber">Leiden Clustering</span>
+      <span class="badge badge--orange">JUMP Dataset</span>
+    </div>
+  </header>
+
+  <!-- ---- Key Stats ---- -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-card__number">407</div>
+      <div class="stat-card__label">Plates Processed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__number">~80K</div>
+      <div class="stat-card__label">Total Wells</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__number">~30K</div>
+      <div class="stat-card__label">Unique Compounds</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__number">22</div>
+      <div class="stat-card__label">Clusters Found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__number">96</div>
+      <div class="stat-card__label">Supervised Hits</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card__number">80%</div>
+      <div class="stat-card__label">Top-20 Validation</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OVERVIEW -->
+  <!-- ============================================================ -->
+  <section class="section" id="overview">
+    <h2>Project Overview</h2>
+    <p class="section__subtitle">What this analysis sets out to answer</p>
+    <p>
+      Cell Painting is a high-content imaging assay that captures the morphological
+      response of cells to chemical perturbations. This project asks: <strong>can we
+      discover biologically meaningful compound groupings in a fully unsupervised
+      way</strong> — using only the Mito channel — and do those groupings agree with
+      an independent supervised classifier?
+    </p>
+    <p>
+      We process every well image through a self-supervised DINOv3 Vision Transformer,
+      aggregate features at the compound level, apply Harmony batch correction, and
+      cluster the resulting embedding with the Leiden algorithm. The answer is a
+      clear <strong>yes</strong>: 16 out of 20 of a classmate's top supervised hits
+      land in the same unsupervised cluster, and the best cluster shows 24&times;
+      enrichment for high-confidence hits over random expectation.
+    </p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- PIPELINE -->
+  <!-- ============================================================ -->
+  <section class="section" id="pipeline">
+    <h2>Pipeline Architecture</h2>
+    <p class="section__subtitle">End-to-end, from raw TIFF images to compound clusters</p>
+
+    <div class="pipeline">
+      <div class="pipeline__step">TIFF Images<small>16-bit Mito</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">Virtual Tiling<small>3&times;4 grid</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">DINOv3<small>ViT-B/16</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">Aggregation<small>tile&rarr;well&rarr;compound</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">Harmony<small>Batch correction</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">Feature Selection<small>Var + Corr filter</small></div>
+      <span class="pipeline__arrow">&#8594;</span>
+      <div class="pipeline__step">UMAP + Leiden<small>Clustering</small></div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Pipeline Overview</div>
+      <img src="plots/preprocessing_overview.png" alt="Preprocessing overview" loading="lazy">
+      <p class="fig-caption">
+        End-to-end pipeline visualization: raw TIFF loading, percentile normalization,
+        virtual tiling, feature extraction, aggregation, and batch correction.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- DATA & PREPROCESSING -->
+  <!-- ============================================================ -->
+  <section class="section" id="preprocessing">
+    <h2>Data &amp; Preprocessing</h2>
+    <p class="section__subtitle">JUMP Cell Painting — Mito channel</p>
+
+    <p>
+      The dataset comprises <strong>407 plates</strong> from the JUMP Cell Painting consortium.
+      Each well contains a 16-bit TIFF image of the mitochondrial (Mito) channel.
+      Images are read directly as float32 — no lossy 8-bit conversion — and normalized
+      using percentile clipping (1st–99th) to handle intensity variation across plates.
+    </p>
+
+    <h3>Virtual Tiling Strategy</h3>
+    <p>
+      Rather than resizing images (which loses local morphological detail), we apply
+      <strong>virtual tiling</strong>: each image is split into a 3&times;4 grid of 12 tiles.
+      Each tile is independently resized to 224&times;224 px for the DINOv3 backbone.
+      This preserves cellular-level resolution while fitting the model's expected input.
+    </p>
+
+    <div class="card">
+      <div class="card__title">Tile &amp; Resize Comparison</div>
+      <img src="plots/tile_resize_comparison.png" alt="Virtual tiling strategy" loading="lazy">
+      <p class="fig-caption">
+        Original image vs. virtual tiles at 224&times;224 px.
+        Tiling preserves cellular morphology that naive downscaling would destroy.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- FEATURE EXTRACTION -->
+  <!-- ============================================================ -->
+  <section class="section" id="features">
+    <h2>Feature Extraction</h2>
+    <p class="section__subtitle">Self-supervised vision transformer features</p>
+
+    <p>
+      We use <strong>DINOv3 ViT-B/16</strong> (<code>facebook/dinov3-vitb16-pretrain-lvd1689m</code>),
+      a self-supervised Vision Transformer pre-trained on 1.7 billion images. Each tile
+      produces a 768-dimensional feature vector from the [CLS] token. Tile features are
+      <strong>mean-pooled</strong> to get image-level features, then aggregated to well-level
+      (mean) and finally to compound-level (median across replicate wells).
+    </p>
+
+    <div class="highlight-box">
+      <strong>Why DINOv3?</strong> Self-supervised pre-training learns general visual features
+      without task-specific labels. DINOv3 captures both texture and structural patterns,
+      making it well-suited for morphological profiling where the phenotype is not known a priori.
+    </div>
+
+    <div class="card">
+      <div class="card__title">Feature Selection</div>
+      <img src="plots/feature_selection.png" alt="Feature selection: variance and correlation filters" loading="lazy">
+      <p class="fig-caption">
+        After aggregation, features with variance &lt; 0.01 are removed, followed by
+        dropping one of each pair with Pearson r &gt; 0.95. Remaining features are L2-normalized.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- BATCH CORRECTION -->
+  <!-- ============================================================ -->
+  <section class="section" id="batch-correction">
+    <h2>Batch Correction</h2>
+    <p class="section__subtitle">Harmony integration across 407 plates</p>
+
+    <p>
+      Plate-level batch effects are a known confound in Cell Painting.
+      We apply <strong>Harmony</strong> at the well level, using plate IDs as the batch variable.
+      The algorithm iteratively clusters wells and computes per-plate correction factors using
+      soft k-means, converging when the objective stabilizes.
+    </p>
+
+    <div class="fig-grid">
+      <div class="card">
+        <div class="card__title">Batch Correction Diagnostics</div>
+        <img src="plots/harmony_diagnostic_plot.png" alt="Harmony diagnostic plot" loading="lazy">
+        <p class="fig-caption">
+          iLISI = 18.76 indicating moderate plate structure. Harmony reduces
+          plate-driven clustering while preserving biological signal.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card__title">With vs. Without Harmony</div>
+        <img src="plots/fair_comparison_plot.png" alt="Fair comparison: with vs without Harmony" loading="lazy">
+        <p class="fig-caption">
+          Fair comparison at identical Leiden resolution. Without Harmony, fold enrichment
+          is higher (23&times;) but batch effects confound the signal.
+        </p>
+      </div>
+    </div>
+
+    <div class="highlight-box highlight-box--amber">
+      <strong>Trade-off:</strong> Harmony flattens some genuine biological variation along
+      with batch effects. We accept this trade-off because plate-level confounds would
+      otherwise dominate the clustering.
+    </div>
+
+    <div class="card">
+      <div class="card__title">Before &amp; After Batch Correction</div>
+      <img src="plots/batch_correction_comparison.png" alt="Batch correction before/after" loading="lazy">
+      <p class="fig-caption">
+        UMAP embeddings colored by plate ID before and after Harmony correction.
+        Post-correction, wells from different plates intermix, confirming reduced batch structure.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- CLUSTERING RESULTS -->
+  <!-- ============================================================ -->
+  <section class="section" id="clustering">
+    <h2>Clustering Results</h2>
+    <p class="section__subtitle">Leiden community detection on the UMAP embedding</p>
+
+    <p>
+      We construct a k-nearest-neighbor graph (k=30, cosine distance) on the batch-corrected
+      features and apply the <strong>Leiden algorithm</strong> at resolution 0.5, yielding
+      <strong>22 clusters</strong>. UMAP is used for 2D visualization (n_neighbors=30, min_dist=0.1).
+    </p>
+
+    <div class="card">
+      <div class="card__title">UMAP Overview — 22 Clusters</div>
+      <img src="plots/fig1_umap_overview.png" alt="UMAP overview of 22 clusters" loading="lazy">
+      <p class="fig-caption">
+        UMAP embedding of ~30,000 compounds colored by Leiden cluster assignment.
+        Distinct clusters range from large general-morphology groups to small specific-phenotype groups.
+      </p>
+    </div>
+
+    <div class="fig-grid">
+      <div class="card">
+        <div class="card__title">Cluster Size Distribution</div>
+        <img src="plots/fig2_cluster_coverage.png" alt="Cluster coverage" loading="lazy">
+        <p class="fig-caption">
+          Cluster sizes span 3 orders of magnitude: from ~50 to ~10,000 compounds.
+          Larger clusters capture general morphological states;
+          smaller ones capture specific phenotypic responses.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card__title">DMSO Control Distribution</div>
+        <img src="plots/fig5_dmso_compound_location.png" alt="DMSO compound distribution" loading="lazy">
+        <p class="fig-caption">
+          DMSO negative controls (26,572 wells from 406 plates) primarily occupy
+          cluster 0, confirming it represents the untreated baseline morphology.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Compound Similarity Heatmap</div>
+      <img src="plots/fig4_compound_similarity_heatmap.png" alt="Compound similarity heatmap" loading="lazy">
+      <p class="fig-caption">
+        Pairwise cosine distance heatmap of compounds ordered by cluster.
+        Clear block-diagonal structure confirms well-separated clusters.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Top Compounds per Cluster</div>
+      <img src="plots/fig3_top_compounds_per_cluster.png" alt="Top compounds per cluster" loading="lazy">
+      <p class="fig-caption">
+        Top 10 compounds closest to each cluster centroid — candidates for
+        cluster-representative phenotypes.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- HIT DISCOVERY -->
+  <!-- ============================================================ -->
+  <section class="section" id="hit-discovery">
+    <h2>Hit Discovery &amp; Validation</h2>
+    <p class="section__subtitle">Unsupervised clusters capture supervised hits</p>
+
+    <p>
+      An independent supervised classifier identified <strong>96 high-confidence hits</strong>
+      (confidence &ge; 0.85). We overlay these on our unsupervised UMAP to test whether
+      biologically active compounds cluster together without any label information.
+    </p>
+
+    <div class="card">
+      <div class="card__title">Supervised Hits on Unsupervised UMAP</div>
+      <img src="plots/fig6_supervised_hits_on_umap.png" alt="96 supervised hits overlaid on UMAP" loading="lazy">
+      <p class="fig-caption">
+        96 supervised hits (red) overlaid on the unsupervised UMAP. Hits concentrate
+        in specific clusters rather than scattering uniformly — strong evidence that
+        unsupervised features capture biologically meaningful variation.
+      </p>
+    </div>
+
+    <div class="highlight-box">
+      <strong>Key finding:</strong> Cluster 16 contains <strong>50 out of 96</strong>
+      supervised hits (52%), despite holding only ~2% of all compounds — a
+      <strong>24&times; enrichment</strong> over random expectation.
+      Among the classmate's top 20 hits, <strong>16 out of 20 (80%)</strong> land in
+      cluster 5.
+    </div>
+
+    <div class="fig-grid">
+      <div class="card">
+        <div class="card__title">Hit Enrichment by Cluster</div>
+        <img src="plots/fig7_hit_enrichment.png" alt="Hit enrichment analysis" loading="lazy">
+        <p class="fig-caption">
+          Fold enrichment of supervised hits per cluster. The top 3 clusters
+          account for ~90% of all hits.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card__title">96-Hit UMAP Overlay</div>
+        <img src="plots/umap_96hits_overlay.png" alt="96-hit UMAP overlay" loading="lazy">
+        <p class="fig-caption">
+          Focused view of the 96 supervised hits with their cluster assignments.
+          Tight grouping confirms that unsupervised phenotypes align with supervised activity.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- ROBUSTNESS -->
+  <!-- ============================================================ -->
+  <section class="section" id="robustness">
+    <h2>Robustness Analysis</h2>
+    <p class="section__subtitle">Stability across random seeds and parameters</p>
+
+    <p>
+      To ensure our findings are not artifacts of a single random initialization, we
+      re-run the full pipeline across <strong>11 random seeds</strong> and measure
+      cluster assignment stability for the 96 supervised hits.
+    </p>
+
+    <div class="fig-grid">
+      <div class="card">
+        <div class="card__title">Seed Stability — 96 Hits</div>
+        <img src="plots/robustness_96hits_plot.png" alt="Robustness across random seeds" loading="lazy">
+        <p class="fig-caption">
+          All 96 hits remain stably assigned across 11 seeds.
+          Clustering is robust to stochastic variation in the pipeline.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card__title">Best Configuration Analysis</div>
+        <img src="plots/best_config_analysis.png" alt="Best configuration analysis" loading="lazy">
+        <p class="fig-caption">
+          Optimal parameter configuration identified across the seed sweep.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Feature Importance</div>
+      <img src="plots/feature_importance_plot.png" alt="Feature importance" loading="lazy">
+      <p class="fig-caption">
+        Top features driving cluster separation. These DINOv3 features correspond
+        to specific morphological patterns captured by the Vision Transformer.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- PARAMETER TUNING -->
+  <!-- ============================================================ -->
+  <section class="section" id="param-tuning">
+    <h2>Parameter Tuning</h2>
+    <p class="section__subtitle">Leiden resolution, PCA dimensions, and k-nearest neighbors</p>
+
+    <p>
+      We perform a grid search over Leiden resolution (0.5–2.0), PCA dimensions, and
+      KNN k to find configurations that maximize hit enrichment while maintaining
+      cluster coherence.
+    </p>
+
+    <div class="fig-grid">
+      <div class="card">
+        <div class="card__title">Fold Enrichment Heatmap</div>
+        <img src="plots/heatmap_fold_enrichment.png" alt="Parameter tuning heatmap" loading="lazy">
+        <p class="fig-caption">
+          Fold enrichment of hits in the best cluster as a function of
+          Leiden resolution and PCA dimensionality.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card__title">Pareto Frontier</div>
+        <img src="plots/pareto_frontier.png" alt="Pareto frontier: clusters vs enrichment" loading="lazy">
+        <p class="fig-caption">
+          Trade-off between number of clusters and maximum fold enrichment.
+          The Pareto-optimal configurations balance granularity with signal concentration.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Resolution Sensitivity Curves</div>
+      <img src="plots/resolution_curves.png" alt="Resolution sensitivity" loading="lazy">
+      <p class="fig-caption">
+        How cluster count and enrichment change as Leiden resolution increases.
+        Resolution 0.5 offers a good balance for this dataset.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- MODEL COMPARISON -->
+  <!-- ============================================================ -->
+  <section class="section" id="model-comparison">
+    <h2>Model Comparison</h2>
+    <p class="section__subtitle">DINOv3 vs. EfficientNet vs. Hybrid features</p>
+
+    <p>
+      To validate our feature extractor choice, we compare three approaches:
+      <strong>DINOv3 ViT-B/16</strong> (self-supervised), <strong>EfficientNet-B0</strong>
+      (supervised ImageNet), and a <strong>hybrid</strong> concatenation of both.
+    </p>
+
+    <div class="card">
+      <div class="card__title">UMAP Comparison Grid</div>
+      <img src="plots/comparison_umap_grid.png" alt="3-method UMAP comparison" loading="lazy">
+      <p class="fig-caption">
+        UMAP embeddings for all three methods. DINOv3 produces the most distinct
+        cluster boundaries, while EfficientNet yields slightly more granular groupings.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Quality Metrics Comparison</div>
+      <img src="plots/comparison_metrics.png" alt="Method comparison metrics" loading="lazy">
+      <p class="fig-caption">
+        Quantitative comparison across clustering quality metrics.
+        All methods show consistent phenotypic groupings, supporting the robustness of the approach.
+      </p>
+    </div>
+
+    <div class="highlight-box">
+      <strong>Conclusion:</strong> All three feature extractors capture similar biological
+      structure. DINOv3 was selected as the primary method for its stronger cluster
+      separation and richer representation of morphological variation.
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- INTERPRETABILITY -->
+  <!-- ============================================================ -->
+  <section class="section" id="interpretability">
+    <h2>Interpretability — Grad-CAM</h2>
+    <p class="section__subtitle">What the model looks at to distinguish phenotypes</p>
+
+    <p>
+      We train a lightweight classifier on top of the extracted features and use
+      <strong>Grad-CAM</strong> to visualize which image regions drive cluster assignment.
+      This provides biological interpretability: do the model's decisions correspond to
+      recognizable cellular structures?
+    </p>
+
+    <div class="card">
+      <div class="card__title">Grad-CAM Summary</div>
+      <img src="plots/summary_figure.png" alt="Grad-CAM summary across clusters" loading="lazy">
+      <p class="fig-caption">
+        Grad-CAM attention maps for representative wells from multiple clusters.
+        The model consistently attends to mitochondrial morphology — fragmented,
+        elongated, or punctate patterns — confirming biological relevance.
+      </p>
+    </div>
+
+    <div class="highlight-box">
+      <strong>Biological relevance:</strong> Grad-CAM reveals that clusters correspond
+      to distinct mitochondrial morphologies: fragmented networks (stress response),
+      elongated filaments (healthy state), and punctate foci (potential apoptotic signals).
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- ALTERNATIVE METHODS (collapsible) -->
+  <!-- ============================================================ -->
+  <section class="section" id="alternative-methods">
+    <h2>Supplementary Analyses</h2>
+    <p class="section__subtitle">Additional clustering approaches explored</p>
+
+    <div class="card">
+      <div class="collapsible__toggle">SNN vs. KNN Graph Construction</div>
+      <div class="collapsible__body">
+        <img src="plots/snn_vs_knn_comparison.png" alt="SNN vs KNN comparison" loading="lazy">
+        <p class="fig-caption">
+          Shared Nearest Neighbor (SNN) graph vs. standard KNN.
+          SNN provides slightly more robust clusters in dense regions but
+          the overall structure is consistent between methods.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="collapsible__toggle">Two-Stage Clustering (HDBSCAN + Leiden)</div>
+      <div class="collapsible__body">
+        <img src="plots/comparison_3panel.png" alt="Two-stage clustering comparison" loading="lazy">
+        <p class="fig-caption">
+          Comparison of single-stage Leiden, HDBSCAN, and two-stage HDBSCAN&rarr;Leiden.
+          Two-stage clustering captures both global structure and fine-grained sub-phenotypes.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- Footer ---- -->
+  <footer class="footer">
+    <p>
+      Unsupervised Phenotype Discovery in JUMP Cell Painting &mdash; MSc Thesis EDA
+      &nbsp;|&nbsp;
+      <a href="https://github.com/dimaa99/Unsupervised-Cellpainting" target="_blank">GitHub</a>
+    </p>
+    <p style="margin-top:0.5rem;">
+      Built with HTML, CSS &amp; vanilla JS &mdash; deployed via GitHub Pages
+    </p>
+  </footer>
+
+</div><!-- /.main -->
+
+<script src="components.js"></script>
+</body>
+</html>
